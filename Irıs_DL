@@ -1,0 +1,96 @@
+# Import Lıbs
+
+# Preprocessing
+import numpy as np
+import pandas as pd
+from keras.utils import plot_model #The library used for drawing the model.
+
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+
+# CNN
+from keras.models import Sequential
+from keras.layers import Dense,Dropout,Input
+from keras.models import Model
+
+# Load Dataset
+datas = pd.read_csv('https://query.data.world/s/vzdezad4zfqmem6427xm73fc5kr6eu')
+
+
+X = datas.iloc[:,1:4].values #Independent variables.
+Y = datas.iloc[:,4:].values #The dependent variable.
+
+# Convert the dependent variable.
+le = LabelEncoder()
+Y = le.fit_transform(Y)
+Y=Y.reshape(150,1)
+
+ohe = OneHotEncoder()
+ohe.categorical_features=1
+Y=ohe.fit_transform(Y).toarray()
+
+
+
+# Split data for training and testing
+x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=0)
+
+
+
+# Scaling data
+sc = MinMaxScaler(feature_range=(0,1))
+X_train = sc.fit_transform(x_train)
+X_test = sc.transform(x_test)
+
+# CNN Model
+classifier = Sequential()
+
+classifier.add(Dense(64, activation = 'relu',input_dim=3)) 
+classifier.add(Dropout(0.2))
+classifier.add(Dense(32, activation = 'relu'))
+classifier.add(Dropout(0.1))
+classifier.add(Dense(16, activation = 'sigmoid'))
+classifier.add(Dropout(0.1))
+classifier.add(Dense(8, activation = 'relu'))
+classifier.add(Dropout(0.1))
+
+classifier.add(Dense(3, activation = 'sigmoid'))
+
+plot_model(classifier,to_file="classifier.png")# Drawing model.
+
+classifier.compile(optimizer = 'rmsprop', loss =  'categorical_crossentropy' , metrics = ['accuracy'])
+
+classifier.fit(X_train, y_train, epochs=100,batch_size=10)
+
+y_pred = classifier.predict(X_test)
+
+def check(y_pred,y_test): # For matching y_pred and y_test values
+  assert y_pred.shape==y_test.shape
+
+  score_dict={"C0":[0,0,0],"C1":[0,0,0],"C2":[0,0,0]}
+  max_value_index=0
+  correct_index=0
+
+  for n_index in range(len(y_pred)-1):
+    max_element=max(y_pred[n_index])
+    for n,element in enumerate(y_pred[n_index]):
+      if element==max_element:
+        max_value_index=n
+
+    max_element=max(y_test[n_index])
+    for n,element in enumerate(y_test[n_index]):
+      if element==max_element:
+        if n==0:
+          score_dict["C0"][max_value_index]+=1
+        if n==1:
+          score_dict["C1"][max_value_index]+=1
+        if n==2:
+          score_dict["C2"][max_value_index]+=1
+    
+  return score_dict
+
+
+res=check(y_pred,y_test)
+print(res)
+
